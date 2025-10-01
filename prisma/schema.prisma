@@ -1,0 +1,61 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Producto {
+  id        Int      @default(autoincrement()) @id
+  disponible Boolean @default(true)
+  nombre   String
+  precioUnitario Float
+  descripcion String?
+  stock    Int
+  detallesFactura DetallesFactura[]
+  eliminado      Boolean  @default(false) // Campo para borrado lógico
+}
+model Factura {
+  id        Int      @default(autoincrement()) @id
+  disponible Boolean @default(true)
+  fecha     DateTime @default(now())
+  total     Float
+  nombreFantasia String
+  fechaFundacion String
+  detallesFactura DetallesFactura[]
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  usuarioId Int
+  eliminado      Boolean  @default(false) 
+}
+model DetallesFactura {
+  id        Int      @default(autoincrement()) @id
+  disponible Boolean @default(true)
+  subtotal  Float
+  cantidad  Int
+  producto  Producto @relation(fields: [productoId], references: [id])
+  productoId Int
+  factura   Factura?  @relation(fields: [facturaId], references: [id])
+  facturaId Int?
+  eliminado      Boolean  @default(false) 
+}
+model Usuario {
+  id        Int      @default(autoincrement()) @id
+  disponible Boolean? @default(true)
+  fechaNacimiento DateTime?
+  dni       String?
+  nombreCompleto    String
+  sexo      String?
+  estadoCivil String?
+  facturas  Factura[]
+  eliminado      Boolean  @default(false) 
+  email     String   @unique
+  password  String
+}
