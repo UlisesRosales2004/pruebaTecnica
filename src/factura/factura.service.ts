@@ -116,7 +116,7 @@ export class FacturaService {
 
     const factura = await this.prismaService.factura.update({
       where: { id },
-      data: { disponible: false },
+      data: { eliminado: true },
     });
 
     return factura;

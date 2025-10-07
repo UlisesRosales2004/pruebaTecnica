@@ -16,7 +16,4 @@ export class CreateDetallesFacturaDto {
   @IsOptional()
   disponible?: boolean;
   
-  @IsInt()
-  @IsOptional()
-  id?: number; 
 }
