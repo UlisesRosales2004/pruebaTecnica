@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+/* import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { DetallesFacturaService } from './detalles-factura.service';
 import { CreateDetallesFacturaDto } from './dto/create-detalles-factura.dto';
 import { UpdateDetallesFacturaDto } from './dto/update-detalles-factura.dto';
@@ -36,3 +36,4 @@ export class DetallesFacturaController {
     return this.detallesFacturaService.remove(id);
   }
 }
+ */

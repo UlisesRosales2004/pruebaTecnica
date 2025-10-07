@@ -13,39 +13,41 @@ export class FacturaService {
   ) {}
 
   async create(createFacturaDto: CreateFacturaDto) {
-    const factura = await this.prismaService.factura.create({
-      data: {
-        nombreFantasia: createFacturaDto.nombreFantasia,
-        fechaFundacion: createFacturaDto.fechaFundacion,
-        usuarioId: createFacturaDto.usuarioId,
-        disponible: createFacturaDto.disponible,
-        total: 0, // Inicialmente 0, se actualizará después
-      },
-    });
-
-    const detallesCreados: DetallesFactura[] = [];
-    //Crear los detalles usando el service de detalles
-    for (const detalle of createFacturaDto.detalles) {
-      const detalleCreado = await this.detallesFacturaService.create({
-        ...detalle,
-        facturaId: factura.id,
+    return await this.prismaService.$transaction(async (prisma) => {
+      const factura = await this.prismaService.factura.create({
+        data: {
+          nombreFantasia: createFacturaDto.nombreFantasia,
+          fechaFundacion: createFacturaDto.fechaFundacion,
+          usuarioId: createFacturaDto.usuarioId,
+          disponible: createFacturaDto.disponible,
+          total: 0, // Inicialmente 0, se actualizará después
+        },
       });
-      detallesCreados.push(detalleCreado);
-    }
 
-    // Calcular el total sumando los subtotales de los detalles creados
-    let total = 0;
-    for (const detalle of detallesCreados) {
-      total += detalle.subtotal;
-    }
+      const detallesCreados: DetallesFactura[] = [];
+      //Crear los detalles usando el service de detalles
+      for (const detalle of createFacturaDto.detalles) {
+        const detalleCreado = await this.detallesFacturaService.create({
+          ...detalle,
+          facturaId: factura.id,
+        });
+        detallesCreados.push(detalleCreado);
+      }
 
-    const facturaActualizada = await this.prismaService.factura.update({
-      where: { id: factura.id },
-      data: { total },
-      include: { detallesFactura: true },
+      // Calcular el total sumando los subtotales de los detalles creados
+      let total = 0;
+      for (const detalle of detallesCreados) {
+        total += detalle.subtotal;
+      }
+
+      const facturaActualizada = await this.prismaService.factura.update({
+        where: { id: factura.id },
+        data: { total },
+        include: { detallesFactura: true },
+      });
+
+      return facturaActualizada;
     });
-
-    return facturaActualizada;
   }
 
   async findAll() {
@@ -60,65 +62,70 @@ export class FacturaService {
   }
 
   async update(id: number, updateFacturaDto: UpdateFacturaDto) {
-    await this.prismaService.factura.update({
-      where: { id },
-      data: {
-        nombreFantasia: updateFacturaDto.nombreFantasia,
-        fechaFundacion: updateFacturaDto.fechaFundacion,
-        usuarioId: updateFacturaDto.usuarioId,
-        disponible: updateFacturaDto.disponible,
-      },
-    });
-
-    const detallesActuales = await this.prismaService.detallesFactura.findMany({
-      where: { facturaId: id, eliminado: false },
-    });
-
-    for (const detalle of detallesActuales) {
-      await this.detallesFacturaService.remove(detalle.id);
-    }
-
-    if (updateFacturaDto.detalles === undefined) {
-      throw new Error('La lista de detalles es obligatoria');
-    }
-
-    const nuevosDetalles: DetallesFactura[] = [];
-    for (const detalle of updateFacturaDto.detalles) {
-      const creado = await this.detallesFacturaService.create({
-        ...detalle,
-        facturaId: id,
+    return await this.prismaService.$transaction(async (prisma) => {
+      await this.prismaService.factura.update({
+        where: { id },
+        data: {
+          nombreFantasia: updateFacturaDto.nombreFantasia,
+          fechaFundacion: updateFacturaDto.fechaFundacion,
+          usuarioId: updateFacturaDto.usuarioId,
+          disponible: updateFacturaDto.disponible,
+        },
       });
-      nuevosDetalles.push(creado);
-    }
 
-    let total = 0;
-    for (const detalle of nuevosDetalles) {
-      total += detalle.subtotal;
-    }
+      const detallesActuales =
+        await this.prismaService.detallesFactura.findMany({
+          where: { facturaId: id, eliminado: false },
+        });
 
-    const facturaActualizada = await this.prismaService.factura.update({
-      where: { id },
-      data: { total },
-      include: { detallesFactura: true },
+      for (const detalle of detallesActuales) {
+        await this.detallesFacturaService.remove(detalle.id);
+      }
+
+      if (updateFacturaDto.detalles === undefined) {
+        throw new Error('La lista de detalles es obligatoria');
+      }
+
+      const nuevosDetalles: DetallesFactura[] = [];
+      for (const detalle of updateFacturaDto.detalles) {
+        const creado = await this.detallesFacturaService.create({
+          ...detalle,
+          facturaId: id,
+        });
+        nuevosDetalles.push(creado);
+      }
+
+      let total = 0;
+      for (const detalle of nuevosDetalles) {
+        total += detalle.subtotal;
+      }
+
+      const facturaActualizada = await this.prismaService.factura.update({
+        where: { id },
+        data: { total },
+        include: { detallesFactura: true },
+      });
+
+      return facturaActualizada;
     });
-
-    return facturaActualizada;
   }
 
   async remove(id: number) {
-    const detalles = await this.prismaService.detallesFactura.findMany({
-      where: { facturaId: id, eliminado: false },
+    return await this.prismaService.$transaction(async (prisma) => {
+      const detalles = await this.prismaService.detallesFactura.findMany({
+        where: { facturaId: id, eliminado: false },
+      });
+
+      for (const detalle of detalles) {
+        await this.detallesFacturaService.remove(detalle.id);
+      }
+
+      const factura = await this.prismaService.factura.update({
+        where: { id },
+        data: { eliminado: true },
+      });
+
+      return factura;
     });
-
-    for (const detalle of detalles) {
-      await this.detallesFacturaService.remove(detalle.id);
-    }
-
-    const factura = await this.prismaService.factura.update({
-      where: { id },
-      data: { eliminado: true },
-    });
-
-    return factura;
   }
 }
